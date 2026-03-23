@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>iPad Chat — Full Flow</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A6FD4;--blue-light:#EAF1FB;--purple:#6B4FBB;
+  --g50:#F8F8F6;--g100:#EBEBEA;--g200:#D4D4D2;--g400:#9C9A92;--g700:#4A4A48;--g900:#1E1E1C;
+  --white:#fff;--me:#4F6FE8;
+  --shadow:0 6px 28px rgba(0,0,0,.15),0 2px 8px rgba(0,0,0,.09);
+  --shadow-lg:0 14px 44px rgba(0,0,0,.22),0 4px 12px rgba(0,0,0,.13);
+}
+html,body{font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;background:#2C3E50;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;overflow:hidden;user-select:none;}
+
+#app{width:760px;min-width:300px;max-width:800px;height:610px;background:#E8E8E4;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 24px 64px rgba(0,0,0,.5),0 6px 20px rgba(0,0,0,.35);display:flex;flex-direction:column;flex-shrink:0;}
+
+/* resize handles */
+#rzL{position:absolute;top:44px;bottom:0;left:0;width:6px;cursor:ew-resize;z-index:500;}
+#rzR{position:absolute;top:44px;bottom:0;right:0;width:6px;cursor:ew-resize;z-index:500;}
+#rzBL{position:absolute;bottom:0;left:0;width:22px;height:22px;cursor:sw-resize;z-index:501;}
+#rzBR{position:absolute;bottom:0;right:0;width:22px;height:22px;cursor:se-resize;z-index:501;}
+#rzBL::after{content:'';position:absolute;bottom:4px;left:4px;width:10px;height:10px;border-left:2px solid rgba(255,255,255,.25);border-bottom:2px solid rgba(255,255,255,.25);border-radius:0 0 0 3px;}
+#rzBR::after{content:'';position:absolute;bottom:4px;right:4px;width:10px;height:10px;border-right:2px solid rgba(255,255,255,.25);border-bottom:2px solid rgba(255,255,255,.25);border-radius:0 0 3px 0;}
+
+#sg{position:fixed;top:0;bottom:0;width:1.5px;background:rgba(26,111,212,.45);pointer-events:none;z-index:9000;display:none;}
+#sg::before{content:'← 吸附';position:absolute;top:38%;right:6px;font-size:10px;color:rgba(26,111,212,.9);white-space:nowrap;}
+
+.sbar{height:26px;background:#F0EFEA;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:10px;color:var(--g700);flex-shrink:0;}
+/* Global top nav bar — highest layer, spans full width */
+#globalNav{height:40px;background:#EDECE8;border-bottom:.5px solid var(--g200);display:flex;align-items:center;padding:0 8px;gap:6px;flex-shrink:0;z-index:300;overflow:hidden;transition:height .2s ease,opacity .2s ease;}
+.gnav-left{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.gnav-icon{width:30px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--g700);cursor:pointer;}
+.gnav-badge{background:#E84040;color:#fff;font-size:8px;border-radius:6px;padding:1px 4px;font-weight:700;}
+#tabBar{display:flex;align-items:center;gap:0;flex:1;overflow:hidden;min-width:0;}
+.tab{background:var(--white);border-radius:5px 5px 0 0;padding:3px 9px;font-size:10px;display:flex;align-items:center;gap:3px;border:.5px solid var(--g200);border-bottom:none;white-space:nowrap;cursor:pointer;}
+.tab.a{background:var(--g50);font-weight:600;}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;}
+.tsp{flex:1;}
+.gnav-right{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+/* Document toolbar */
+.tbar{height:38px;background:#F5F4EF;border-bottom:.5px solid var(--g200);display:flex;align-items:center;padding:0 12px;gap:7px;font-size:12px;color:var(--g700);flex-shrink:0;overflow:hidden;}
+.tbar-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.avrow{display:flex;}
+.av{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--white);margin-left:-5px;font-size:8px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;}
+.sbtn{background:var(--purple);color:#fff;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:500;white-space:nowrap;}
+/* Formatting toolbar */
+.fbar{height:32px;background:#F5F4EF;border-bottom:.5px solid var(--g200);display:flex;align-items:center;gap:6px;padding:0 12px;font-size:11px;color:var(--g400);flex-shrink:0;overflow:hidden;}
+.fb{font-size:11px;color:var(--g700);}.fb.bo{font-weight:700;}.fb.it{font-style:italic;}
+.fsep{width:.5px;height:13px;background:var(--g200);flex-shrink:0;}
+
+/* Root body row: lnav | right-col */
+#bodyRow{display:flex;flex:1;overflow:hidden;min-height:0;}
+#lnav{width:50px;background:#F0EFEA;border-right:.5px solid var(--g200);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:12px;flex-shrink:0;transition:width .2s ease,opacity .2s ease;overflow:hidden;}
+/* Right column: tbar + fbar + main + stbot — panel is positioned here so it can overlay tbar/fbar */
+#rightCol{display:flex;flex-direction:column;flex:1;overflow:visible;min-width:0;position:relative;}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--white);}
+#mainRow{display:flex;flex:1;overflow:hidden;min-height:0;}
+.ni{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--g700);}
+.ni.ac{background:var(--blue-light);color:var(--blue);}
+.nilb{font-size:8px;color:var(--g400);margin-top:-9px;transition:opacity .15s;}
+.ngrp{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.navav{width:32px;height:32px;border-radius:50%;background:#C8A060;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;margin-top:auto;}
+
+#doc{flex:1;overflow-y:auto;padding:28px 40px;font-size:12.5px;color:var(--g900);line-height:1.7;min-width:0;}
+.dt{font-size:24px;font-weight:700;margin-bottom:7px;}
+.dc{display:inline-block;width:2px;height:22px;background:var(--blue);margin-left:1px;vertical-align:middle;opacity:.8;}
+.dm{color:var(--g400);font-size:10px;margin-bottom:20px;display:flex;align-items:center;gap:5px;}
+.dmav{width:15px;height:15px;border-radius:50%;background:#8090C0;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:7px;}
+.dh{font-size:14px;font-weight:700;margin:18px 0 8px;}
+.dr{margin-bottom:5px;}
+.dl{color:var(--blue);}
+#dgrid{display:grid;grid-template-columns:repeat(4,1fr);border:.5px solid var(--g100);border-radius:7px;overflow:hidden;margin-top:7px;transition:grid-template-columns .2s ease;}
+.dch{background:var(--blue-light);padding:7px 9px;font-size:10px;font-weight:600;border-right:.5px solid var(--g100);color:var(--g700);}
+.dch:last-child{border-right:none;}
+.dci{padding:6px 9px;font-size:10px;color:var(--g700);border-right:.5px solid var(--g100);border-top:.5px solid var(--g100);}
+.dci:last-child{border-right:none;}
+.stbot{height:28px;background:#F5F4EF;border-top:.5px solid var(--g200);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:10px;color:var(--g400);flex-shrink:0;}
+
+#overlay{
+  position:absolute;
+  top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,.4);
+  z-index:90;display:none;opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease;
+}
+#overlay.show{display:block;opacity:1;pointer-events:auto;}
+#app.narrow-snapped #overlay{
+  z-index:400;/* above globalNav z-index:300 */
+  background:rgba(0,0,0,.52)!important;
+  backdrop-filter:blur(1.5px);
+  -webkit-backdrop-filter:blur(1.5px);
+}
+
+/* ═══ PANEL ═══ */
+#panel{
+  position:absolute;z-index:250;
+  left:0px;top:14px;
+  width:360px;height:136px;
+  background:var(--white);border-radius:14px;
+  box-shadow:var(--shadow);
+  display:flex;flex-direction:column;overflow:visible;
+}
+/* P1 toast is draggable */
+#panel.p1-draggable{cursor:grab;}
+#panel.p1-draggable:active{cursor:grabbing;}
+#pi{position:absolute;inset:0;border-radius:inherit;overflow:hidden;display:flex;flex-direction:column;}
+
+/* toast */
+#vToast{display:none;flex-direction:column;padding:12px 16px 16px 18px;flex:1;background:var(--white);}
+#vToast.on{display:flex;}
+.t-toprow{display:flex;justify-content:flex-end;gap:16px;margin-bottom:8px;}
+.t-iconbtn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--g700);border-radius:6px;transition:background .15s;}
+.t-iconbtn:hover{background:var(--g100);}
+.t-groupname{font-size:17px;font-weight:700;color:var(--g900);margin-bottom:10px;}
+.t-msgrow{display:flex;align-items:center;gap:12px;}
+.t-av{width:38px;height:38px;border-radius:9px;flex-shrink:0;overflow:hidden;background:#C0B0A0;}
+.t-text{font-size:13px;color:var(--g700);line-height:1.5;}
+
+/* float header */
+#fHead{display:none;flex-shrink:0;border-bottom:.5px solid var(--g100);padding:10px 14px 9px;cursor:move;background:var(--white);}
+#fHead.on{display:block;}
+.fh1{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.fhback{color:var(--blue);cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.fhname{font-size:13px;font-weight:600;flex:1;color:var(--g900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fhics{display:flex;gap:10px;flex-shrink:0;}
+.fhic{color:var(--g400);cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:5px;transition:background .15s;}
+.fhic:hover{background:var(--g100);color:var(--g700);}
+.fhtabs{display:flex;gap:14px;overflow:hidden;}
+.fhtab{font-size:10px;color:var(--g400);cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap;}
+
+/* snapped header */
+#sHead{display:none;flex-shrink:0;border-bottom:.5px solid var(--g100);padding:10px 14px 8px;background:var(--white);}
+#sHead.on{display:block;}
+.sh1{display:flex;align-items:center;gap:8px;margin-bottom:9px;min-width:0;}
+.shclose{width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--g700);flex-shrink:0;}
+.shname{font-size:15px;font-weight:700;flex:1;color:var(--g900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.shics{display:flex;gap:14px;align-items:center;flex-shrink:0;}
+.shic{width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--g700);}
+.shtabs{display:flex;gap:14px;overflow:hidden;}
+.shtab{font-size:11px;color:var(--g400);cursor:pointer;white-space:nowrap;}
+
+/* drag pill */
+#dragPill{display:none;flex-shrink:0;height:18px;cursor:ns-resize;background:transparent;position:relative;}
+#dragPill::after{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:3px;background:#C0BEB8;}
+#panel.snapped #dragPill{display:block;}
+
+/* messages */
+#msgs{display:none;flex:1;overflow-y:auto;padding:14px 12px 10px;flex-direction:column;gap:14px;background:#F5F5F3;}
+#msgs.on{display:flex;}
+.msg{display:flex;gap:10px;align-items:flex-start;}
+.msg.me{flex-direction:row;gap:10px;justify-content:flex-end;}
+.msg.me .mbub.me{order:1;}
+.msg.me .mav-ci{order:2;}
+/* Avatar: unified circle, same size for both sides */
+.mav-sq{width:34px;height:34px;border-radius:50%;flex-shrink:0;overflow:hidden;}
+.mav-ci{width:34px;height:34px;border-radius:50%;flex-shrink:0;overflow:hidden;}
+#panel.snapped .mav-sq{width:38px;height:38px;}
+#panel.snapped .mav-ci{width:38px;height:38px;}
+.mbub{background:var(--white);border-radius:2px 12px 12px 12px;padding:10px 12px;max-width:82%;box-shadow:0 1px 4px rgba(0,0,0,.07);word-break:break-word;overflow-wrap:break-word;}
+.mbub.me{background:var(--me);color:#fff;border-radius:12px 2px 12px 12px;}
+#panel.snapped .mbub{max-width:76%;}
+.mq{font-size:11px;color:var(--g400);background:rgba(0,0,0,.04);border-left:3px solid var(--g200);padding:4px 8px;border-radius:0 4px 4px 0;margin-bottom:6px;line-height:1.5;word-break:break-word;}
+.mq.me{background:rgba(255,255,255,.18);border-left-color:rgba(255,255,255,.5);color:rgba(255,255,255,.82);}
+.mt{font-size:12px;line-height:1.6;color:var(--g900);word-break:break-word;}
+.mbub.me .mt{color:#fff;}
+#panel.snapped .mt{font-size:14px;}
+.mm{color:#5AACF0;font-weight:500;}
+.mm.me{color:rgba(255,255,255,.9);}
+
+/* input */
+#inp{display:none;flex-shrink:0;border-top:.5px solid var(--g100);padding:9px 12px;align-items:center;gap:9px;background:var(--white);}
+#inp.on{display:flex;}
+#panel.snapped #inp{padding:11px 16px;gap:10px;}
+.cinp{flex:1;background:var(--g100);border:none;border-radius:20px;padding:8px 14px;font-size:12px;color:var(--g900);outline:none;font-family:inherit;min-width:0;}
+#panel.snapped .cinp{font-size:15px;padding:10px 16px;}
+.csend{background:var(--blue);color:#fff;border:none;border-radius:20px;padding:8px 18px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;}
+#panel.snapped .csend{font-size:15px;padding:10px 22px;border-radius:22px;}
+
+/* panel resize handles */
+.rh{position:absolute;z-index:200;display:none;}
+#rr{top:0;bottom:0;right:0;width:8px;cursor:ew-resize;}
+#rb{left:0;right:0;bottom:0;height:8px;cursor:ns-resize;}
+#rt{left:0;right:0;top:0;height:8px;cursor:ns-resize;}
+#rl{top:0;bottom:0;left:0;width:8px;cursor:ew-resize;}
+#rtr{top:0;right:0;width:16px;height:16px;cursor:nesw-resize;}
+#rbr{bottom:0;right:0;width:16px;height:16px;cursor:nwse-resize;}
+#rtl{top:0;left:0;width:16px;height:16px;cursor:nwse-resize;}
+#rbl{bottom:0;left:0;width:16px;height:16px;cursor:nesw-resize;}
+
+/* snapped state — sits directly in #app, pinned to bottom */
+#panel.snapped{
+  position:absolute!important;
+  left:0!important;right:0!important;bottom:0!important;top:auto!important;
+  width:100%!important;height:300px;
+  border-radius:14px 14px 0 0!important;box-shadow:none!important;
+  border-top:1px solid var(--g200);overflow:hidden!important;margin:0!important;
+  z-index:95;
+  transition:top .28s cubic-bezier(.4,0,.2,1), height .28s cubic-bezier(.4,0,.2,1), border-radius .28s ease;
+}
+#panel.snapped #pi{border-radius:14px 14px 0 0;}
+
+/* narrow snapped: 3/4 height pinned to bottom, highest z-index */
+#app.narrow-snapped #panel.snapped{
+  height:75%!important;
+  z-index:500;/* above overlay z-index:400 */
+}
+#app.narrow-snapped #dragPill{display:none!important;cursor:default!important;}
+#app.narrow-snapped #sHead{cursor:default!important;}
+#app.narrow-snapped #btnSnapRestore{display:none!important;}
+#app.narrow-snapped #overlay{
+  background:rgba(0,0,0,.55)!important;
+  backdrop-filter:blur(1px);
+  -webkit-backdrop-filter:blur(1px);
+}
+
+@keyframes magpulse{0%{transform:translateX(0);}25%{transform:translateX(-4px);}75%{transform:translateX(4px);}100%{transform:translateX(0);}}
+#panel.magpulse{animation:magpulse .32s ease-in-out;}
+
+/* minimized bar */
+#minBar{display:none;position:absolute;bottom:36px;right:12px;z-index:200;background:var(--white);border-radius:10px;box-shadow:var(--shadow);height:44px;min-width:200px;max-width:280px;align-items:center;padding:0 14px;gap:10px;white-space:nowrap;}
+#minBar.show{display:flex;}
+.mb-name{font-size:13px;font-weight:500;color:var(--g900);flex:1;overflow:hidden;text-overflow:ellipsis;}
+.mb-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:5px;transition:background .15s;flex-shrink:0;}
+.mb-btn:hover{background:var(--g100);}
+
+#hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(15,15,12,.78);color:#fff;border-radius:10px;padding:7px 18px;font-size:11px;pointer-events:none;z-index:9999;white-space:nowrap;}
+</style>
+</head>
+<body>
+<div id="sg"></div>
+<div id="hint">P1: 拖右/左边缘缩窄 · 点击 ⤢ 展开聊天</div>
+<div id="app">
+  <div id="rzL"></div><div id="rzR"></div><div id="rzBL"></div><div id="rzBR"></div>
+  <div class="sbar"><span style="font-weight:600;">9:41&nbsp;&nbsp;Mon Jun 6</span><div style="display:flex;align-items:center;gap:5px;font-size:10px;"><span>▐▌▌</span><span>WiFi</span><svg width="20" height="10" viewBox="0 0 20 10"><rect x="0" y="0" width="18" height="10" rx="2" fill="none" stroke="#4A4A48" stroke-width="1"/><rect x="1" y="1" width="16" height="8" rx="1.5" fill="#4A4A48"/><rect x="18.5" y="2.5" width="1.5" height="5" rx=".75" fill="#4A4A48"/></svg></div></div>
+  <div id="globalNav">
+    <div class="gnav-left">
+      <div class="gnav-icon">🔵</div>
+      <span style="font-size:9px;color:var(--g400);">消息</span>
+      <span class="gnav-badge">99</span>
+    </div>
+    <div id="tabBar">
+      <div class="tab a"><span class="dot" style="background:#E05A3A;"></span>&nbsp;新…&nbsp;<span style="color:var(--g400);font-size:9px;cursor:pointer;">×</span></div>
+      <div class="tab"><span class="dot" style="background:var(--purple);"></span>&nbsp;心理学与用</div>
+      <div class="tab"><span class="dot" style="background:var(--purple);"></span>&nbsp;心理学与用</div>
+      <div class="tab"><span class="dot" style="background:var(--purple);"></span>&nbsp;心理学与用</div>
+      <div class="tab"><span class="dot" style="background:var(--purple);"></span>&nbsp;心理学与用</div>
+      <div class="tab"><span class="dot" style="background:var(--purple);"></span>&nbsp;新视觉方案</div>
+      <div class="tsp"></div>
+    </div>
+    <div class="gnav-right">
+      <span style="font-size:11px;color:var(--g400);padding:0 3px;cursor:pointer;">+</span>
+      <span style="font-size:11px;color:var(--g400);padding:0 3px;cursor:pointer;">⊞</span>
+    </div>
+  </div>
+  <div id="bodyRow">
+    <div id="lnav">
+      <div class="ni ac">🔍</div>
+      <div class="ngrp"><div class="ni">📄</div><div class="nilb" id="lb1">文档</div></div>
+      <div class="ngrp"><div class="ni">⬜</div><div class="nilb" id="lb2">工作台</div></div>
+      <div class="ngrp"><div class="ni">👤</div><div class="nilb" id="lb3">我的</div></div>
+      <div class="ngrp"><div class="ni" style="background:linear-gradient(135deg,#E88050,#C04020);color:#fff;font-size:11px;">⊞</div><div class="nilb" id="lb4">更多</div></div>
+      <div class="navav">金</div>
+    </div>
+    <div id="rightCol">
+      <div class="tbar">
+        <span>⌂</span><span style="color:var(--g400);">+</span><span style="color:var(--g400);">☰</span>
+        <span style="font-size:12px;color:var(--g900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">项目组工作周报</span>
+        <div class="tbar-r"><span style="color:var(--g400);font-size:13px;">☁</span><div class="avrow" id="avrow"><div class="av" style="background:#8090C0;">田</div><div class="av" style="background:#A06080;">彭</div><div class="av" style="background:#6090A0;">沈</div><div class="av" style="background:#B08040;">金</div></div><div class="sbtn" id="sbtn">↗ 分享</div></div>
+      </div>
+      <div class="fbar"><span class="fb">↩</span><span class="fb">↪</span><span class="fb">标题一▾</span><span class="fb">22▾</span><div class="fsep"></div><span class="fb bo">B</span><span class="fb it">I</span><span class="fb" style="text-decoration:underline;">U</span><span class="fb">A▾</span><div class="fsep"></div><span class="fb">≡</span><span class="fb">☑</span><span class="fb">⋯</span></div>
+      <div id="main">
+        <div id="mainRow">
+          <div id="doc">
+            <div class="dt">项目组工作周报<span class="dc"></span></div>
+        <div class="dm"><span class="dmav">田</span>田心怡 创建&nbsp;|&nbsp;更新于 今天15:32</div>
+        <div class="dh">每周例会安排</div>
+        <div class="dr"><b>时间：</b>每周五下午 14:00–15:00</div>
+        <div class="dr"><b>目标：</b>回顾本周项目进展，并对齐下周计划。</div>
+        <div class="dr"><b>目标：</b>回顾本周项目进展，并对齐下周计划。</div>
+        <div class="dr"><b>日程：</b>&nbsp;<a class="dl">📋 项目组周例会</a></div>
+        <div class="dh">本周计划</div>
+        <div id="dgrid">
+          <div class="dch">产品设计</div><div class="dch">技术研发</div><div class="dch">市场营销</div><div class="dch">用户运营</div>
+          <div class="dci">1. 改善产品设计细节</div><div class="dci">1. 新功能的开发和测试</div><div class="dci">1. 多渠道进行活动宣传</div><div class="dci">1. 根据反馈调整策略</div>
+          <div class="dci">2. 用户反馈收集</div><div class="dci">2. 修复已知bug</div><div class="dci">2. 完成线上的推广活动</div><div class="dci">2. 制定个性化运营方案</div>
+        </div>
+        <div class="dh">本周亮点</div>
+        <div class="dr">1. 项目进度超出预期，主要功能模块完成度达85%</div>
+        <div class="dr">2. 用户测试反馈良好，满意度评分4.2/5.0</div>
+      </div>
+
+    </div><!-- /mainRow -->
+  </div><!-- /main -->
+  <div class="stbot"><span>934 个字 ▾</span><div style="display:flex;align-items:center;gap:7px;"><span>⊡ 100%</span><span>−</span><span>+</span><div style="width:20px;height:20px;background:#E04020;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;">▶</div></div></div>
+      <!-- PANEL -->
+      <div id="panel">
+        <div id="pi">
+          <div id="dragPill"></div>
+          <div id="vToast" class="on">
+            <div class="t-toprow">
+              <div class="t-iconbtn" id="btnExpand"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M9 17H3v-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3h6v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17l7-7M17 3l-7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+              <div class="t-iconbtn" id="btnClose0"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+            </div>
+            <div class="t-groupname">项目开发进度群(300)</div>
+            <div class="t-msgrow">
+              <div class="t-av"><svg width="38" height="38" viewBox="0 0 48 48"><rect width="48" height="48" rx="9" fill="#C0B0A0"/><ellipse cx="24" cy="50" rx="16" ry="11" fill="#5A7060"/><rect x="20" y="34" width="8" height="7" rx="2" fill="#E2B898"/><ellipse cx="24" cy="25" rx="11" ry="12" fill="#E8C4A0"/><ellipse cx="24" cy="16" rx="12" ry="9" fill="#2C1F18"/><ellipse cx="13.5" cy="24" rx="3" ry="8" fill="#2C1F18"/><ellipse cx="34.5" cy="24" rx="3" ry="8" fill="#2C1F18"/><rect x="12" y="30" width="24" height="4" rx="2" fill="#2C1F18"/><ellipse cx="19.5" cy="25" rx="1.9" ry="1.9" fill="#1E1208"/><ellipse cx="28.5" cy="25" rx="1.9" ry="1.9" fill="#1E1208"/><circle cx="20.2" cy="24.3" r=".65" fill="rgba(255,255,255,.9)"/><circle cx="29.2" cy="24.3" r=".65" fill="rgba(255,255,255,.9)"/><path d="M20.5 31.5 Q24 33.5 27.5 31.5" stroke="#B87060" stroke-width="1.1" stroke-linecap="round" fill="none"/></svg></div>
+              <div class="t-text">沈蕾：@田心怡 @彭泽 发现了几个小问题有空可以看看～</div>
+            </div>
+          </div>
+          <div id="fHead">
+            <div class="fh1">
+              <span class="fhback"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="fhname">项目开发进度群(300)</span>
+              <div class="fhics">
+                <span class="fhic" id="btnMin"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+                <span class="fhic" id="btnClose1"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+              </div>
+            </div>
+            <div class="fhtabs"><div class="fhtab">☆ 聊天置顶</div><div class="fhtab">📄 云文档</div><div class="fhtab">👥 KSUX设计团队</div><div class="fhtab" style="font-size:14px;">⊕</div></div>
+          </div>
+          <div id="sHead">
+            <div class="sh1">
+              <div class="shclose" id="btnSnapClose"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></div>
+              <span class="shname">项目开发进度群(300)</span>
+              <div class="shics">
+                <div class="shic" id="btnSnapRestore"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="1.5" y="1.5" width="17" height="17" rx="4.5" stroke="currentColor" stroke-width="1.7"/></svg></div>
+                <div class="shic"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5a5.5 5.5 0 00-5.5 5.5v3.5L3 14h14l-1.5-2.5V8A5.5 5.5 0 0010 2.5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 16.5a2 2 0 004 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+                <div class="shic"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 17H4v-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 3h6v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17l7-7M16 3l-7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+              </div>
+            </div>
+            <div class="shtabs"><div class="shtab">☆ 聊天置顶</div><div class="shtab">📄 云文档</div><div class="shtab">👥 KSUX设计团队</div><div class="shtab" style="font-size:14px;">⊕</div></div>
+          </div>
+          <div id="msgs">
+            <div class="msg">
+              <div class="mav-sq"><svg width="100%" height="100%" viewBox="0 0 48 48"><rect width="48" height="48" fill="#8090A8"/><ellipse cx="24" cy="52" rx="18" ry="11" fill="#3A5080"/><rect x="20" y="34" width="8" height="8" rx="2" fill="#C89A70"/><ellipse cx="24" cy="24" rx="11" ry="12" fill="#D09A78"/><ellipse cx="24" cy="14" rx="12" ry="8" fill="#18100A"/><ellipse cx="13" cy="22" rx="2.5" ry="6" fill="#18100A"/><ellipse cx="35" cy="22" rx="2.5" ry="6" fill="#18100A"/><ellipse cx="19.5" cy="24" rx="2" ry="2" fill="#180E06"/><ellipse cx="28.5" cy="24" rx="2" ry="2" fill="#180E06"/><circle cx="20.3" cy="23.3" r=".7" fill="rgba(255,255,255,.85)"/><circle cx="29.3" cy="23.3" r=".7" fill="rgba(255,255,255,.85)"/><path d="M20 30.5 Q24 32.5 28 30.5" stroke="#986040" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg></div>
+              <div class="mbub"><div class="mq">沈蕾：@田心怡 @彭泽 发现了几个小问题有空可以看看～</div><div class="mt">好的</div></div>
+            </div>
+            <div class="msg me">
+              <div class="mbub me"><div class="mq me">沈蕾：@田心怡 @彭泽 发现了几个小问题有空可以看看～</div><div class="mt"><span class="mm me">@沈蕾</span> 已更新</div></div>
+              <div class="mav-ci"><svg width="100%" height="100%" viewBox="0 0 48 48"><rect width="48" height="48" fill="#C0A898"/><ellipse cx="24" cy="50" rx="16" ry="11" fill="#5A7060"/><rect x="20" y="34" width="8" height="7" rx="2" fill="#E2B898"/><ellipse cx="24" cy="25" rx="11" ry="12" fill="#E8C4A0"/><ellipse cx="24" cy="16" rx="12" ry="9" fill="#2C1F18"/><ellipse cx="13.5" cy="24" rx="3" ry="8" fill="#2C1F18"/><ellipse cx="34.5" cy="24" rx="3" ry="8" fill="#2C1F18"/><rect x="12" y="30" width="24" height="4" rx="2" fill="#2C1F18"/><ellipse cx="19.5" cy="25" rx="1.9" ry="1.9" fill="#1E1208"/><ellipse cx="28.5" cy="25" rx="1.9" ry="1.9" fill="#1E1208"/><circle cx="20.2" cy="24.3" r=".65" fill="rgba(255,255,255,.9)"/><circle cx="29.2" cy="24.3" r=".65" fill="rgba(255,255,255,.9)"/><path d="M20.5 31.5 Q24 33.5 27.5 31.5" stroke="#B87060" stroke-width="1.1" stroke-linecap="round" fill="none"/></svg></div>
+            </div>
+          </div>
+          <div id="inp">
+            <input class="cinp" value="好的 " readonly>
+            <span style="font-size:17px;cursor:pointer;flex-shrink:0;">🙂</span>
+            <button class="csend">发送</button>
+          </div>
+        </div>
+        <div id="rr" class="rh"></div><div id="rb" class="rh"></div>
+        <div id="rt" class="rh"></div><div id="rl" class="rh"></div>
+        <div id="rtr" class="rh"></div><div id="rbr" class="rh"></div>
+        <div id="rtl" class="rh"></div><div id="rbl" class="rh"></div>
+      </div>
+  </div><!-- /rightCol -->
+  </div><!-- /bodyRow -->
+  <div id="overlay"></div>
+  <div id="minBar">
+    <span class="mb-name">项目开发进度群(300)</span>
+    <div class="mb-btn" id="btnMinRestore"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="13" height="13" rx="3.5" stroke="#4A4A48" stroke-width="1.6"/></svg></div>
+    <div class="mb-btn" id="btnMinClose"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="#4A4A48" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+  </div>
+</div>
+
+<script>
+const SNAP_W=500, UNSNAP_W=545, MIN_APP=300, MAX_APP=800;
+const TOAST_W=360, TOAST_H=136;
+
+const app=document.getElementById('app'),panel=document.getElementById('panel'),pi=document.getElementById('pi');
+const main=document.getElementById('main'),mainRow=document.getElementById('mainRow');
+const rightCol=document.getElementById('rightCol');
+const overlay=document.getElementById('overlay'),sg=document.getElementById('sg'),hint=document.getElementById('hint');
+const dgrid=document.getElementById('dgrid'),lnav=document.getElementById('lnav'),tabBar=document.getElementById('globalNav');
+const vToast=document.getElementById('vToast'),fHead=document.getElementById('fHead'),sHead=document.getElementById('sHead');
+const msgs=document.getElementById('msgs'),inp=document.getElementById('inp'),dragPill=document.getElementById('dragPill');
+const allRH=document.querySelectorAll('.rh');
+const stbot=document.querySelector('.stbot');
+
+let phase='p1', snapped=false;
+let pw=TOAST_W, ph=TOAST_H, panelAR=TOAST_W/TOAST_H;
+let savedW=360, savedH=400;  // saved expanded size
+let savedSide='right';        // 'left' or 'right' — remembered before snap
+
+// Unsnap sliding state
+let sliding=false;      // true while sliding from left→right after unsnap
+let slideFromW=0;       // app width when unsnap happened (= UNSNAP_W)
+let slideToW=0;         // target app width (original wide)
+
+/* MR() returns rightCol rect — panel is positioned relative to rightCol in P3 */
+function MR(){ return rightCol.getBoundingClientRect(); }
+function setHint(t){ hint.textContent=t; }
+function showRH(on){ allRH.forEach(h=>h.style.display=(on&&!snapped)?'block':'none'); }
+
+/* ── doc layout ── */
+function updateDoc(appW){
+  if(appW<380) dgrid.style.gridTemplateColumns='repeat(1,1fr)';
+  else if(appW<540) dgrid.style.gridTemplateColumns='repeat(2,1fr)';
+  else dgrid.style.gridTemplateColumns='repeat(4,1fr)';
+  if(appW<=340){lnav.style.width='0';lnav.style.opacity='0';}
+  else if(appW<380){lnav.style.width='40px';lnav.style.opacity='1';}
+  else{lnav.style.width='50px';lnav.style.opacity='1';}
+  ['lb1','lb2','lb3','lb4'].forEach(id=>document.getElementById(id).style.opacity=appW<540?'0':'1');
+  document.getElementById('avrow').style.display=appW<420?'none':'';
+  document.getElementById('sbtn').style.display=appW<460?'none':'';
+  if(appW<=340){tabBar.style.height='0';tabBar.style.opacity='0';}
+  else{tabBar.style.height='';tabBar.style.opacity='1';}
+}
+
+/* ── Compute drag bounds relative to mainRow ── */
+/* Allowed region:
+   Top    : panel may slide up to cover tbar+fbar, but NOT sbar+globalNav
+            → topMin = -(tbar.height + fbar.height)  [negative = above mainRow top]
+   Left   : panel left edge must stay right of lnav right edge
+            → leftMin = 0  (mainRow already starts at lnav right edge)
+   Bottom : panel bottom must not enter stbot
+            → bottomMax = mainRow.height  (stbot is below mainRow)
+   Right  : panel right edge must not exceed app right edge
+            → rightMax = mainRow.width
+*/
+function getBounds(){
+  const mr=MR();
+  const stbotH=stbot ? stbot.offsetHeight : 0;
+  return {
+    minX: 0,
+    maxX: mr.width - pw,
+    minY: 0,
+    maxY: mr.height - stbotH - ph
+  };
+}
+
+/* ── panel position: clamp inside allowed bounds ── */
+function clampPanel(){
+  const mr=MR();
+  const b=getBounds();
+  // If panel is right-anchored, just ensure width fits
+  if(panel.style.right && panel.style.right!=='auto' && panel.style.right!==''){
+    if(pw>mr.width-4){ pw=Math.max(220,mr.width-4); panel.style.width=pw+'px'; }
+    let t=parseFloat(panel.style.top)||0;
+    t=Math.max(b.minY, Math.min(b.maxY, t));
+    panel.style.top=t+'px';
+    return;
+  }
+  let l=parseFloat(panel.style.left)||0;
+  let t=parseFloat(panel.style.top)||0;
+  l=Math.max(b.minX, Math.min(b.maxX, l));
+  t=Math.max(b.minY, Math.min(b.maxY, t));
+  panel.style.left=l+'px';
+  panel.style.top=t+'px';
+}
+
+/* ── P1 toast positioning ── */
+/* Toast sits at top-right of rightCol, floating in document area.
+   topBase = tbarH + fbarH so it appears below the toolbars (in the white doc area),
+   matching the screenshot. Scale-squeezes as app narrows. */
+function getToastTop(){
+  const tbarEl=document.querySelector('.tbar');
+  const fbarEl=document.querySelector('.fbar');
+  return (tbarEl?tbarEl.offsetHeight:0)+(fbarEl?fbarEl.offsetHeight:0);
+}
+function posToast(appW){
+  const mr=MR();
+  const scale=Math.min(1, mr.width/TOAST_W);
+  const npw=Math.round(TOAST_W*scale);
+  const nph=Math.round(TOAST_H*scale);
+  // t=0: right-aligned, t=1: centered (as app narrows toward SNAP_W)
+  const t=Math.max(0,Math.min(1,(MAX_APP-appW)/(MAX_APP-SNAP_W)));
+  const rightL=mr.width-npw;
+  const centerL=Math.round((mr.width-npw)/2);
+  const l=Math.round(rightL+(centerL-rightL)*t);
+  const topBase=getToastTop();
+  // Only reposition if NOT mid-drag (let drag override)
+  if(!drag){
+    panel.style.left=Math.max(0,l)+'px';
+    panel.style.top=topBase+'px';
+    panel.style.right='auto';
+  }
+  panel.style.width=npw+'px';
+  panel.style.height=nph+'px';
+  // Scale pi content
+  pi.style.transformOrigin='top left';
+  pi.style.transform=scale<1?`scale(${scale})`:'';
+  pi.style.width=scale<1?TOAST_W+'px':'';
+  pi.style.height=scale<1?TOAST_H+'px':'';
+  pw=npw; ph=nph;
+}
+
+/* ── Expand P1→P2 ── */
+function expandPanel(){
+  const appW=app.offsetWidth;
+  phase='p2';
+  if(appW<=SNAP_W){
+    // Narrow → go straight to snapped
+    panel.classList.remove('p1-draggable');
+    vToast.classList.remove('on');
+    fHead.classList.add('on'); msgs.classList.add('on'); inp.classList.add('on');
+    pw=Math.min(360,appW); ph=400; panelAR=pw/ph;
+    savedW=pw; savedH=ph;
+    doSnap();
+  } else {
+    savedSide='right';
+    panel.classList.remove('p1-draggable');
+    // Reset pi scaling first
+    pi.style.transform=''; pi.style.width=''; pi.style.height='';
+    const mr=MR();
+    const npw=Math.min(360,mr.width-4);
+    const nph=400;
+    const stbH=stbot ? stbot.offsetHeight : 0;
+    const nt=Math.max(0, mr.height-stbH-nph-4);
+    panel.style.transition='width .28s cubic-bezier(.4,0,.2,1),height .28s cubic-bezier(.4,0,.2,1)';
+    panel.style.right='4px'; panel.style.left='auto';
+    panel.style.top=nt+'px';
+    panel.style.width=npw+'px'; panel.style.height=nph+'px';
+    pw=npw; ph=nph; panelAR=pw/ph; savedW=pw; savedH=ph;
+    vToast.classList.remove('on');
+    setTimeout(()=>{
+      fHead.classList.add('on'); msgs.classList.add('on'); inp.classList.add('on');
+      showRH(true); phase='p3';
+      panel.style.transition='';
+      setHint('P3: 拖标题移动 · 拖边缘缩放 · 拖右/左边缘收窄触发吸附');
+    },200);
+  }
+}
+
+/* ── Snap P3→P5 ── */
+function doSnap(){
+  if(snapped) return;
+  snapped=true; phase='p5';
+  savedW=pw; savedH=ph;
+  // Remember which side panel was on
+  const mr=MR();
+  const panelCenter=parseFloat(panel.style.left||0)+pw/2;
+  savedSide = panelCenter < mr.width/2 ? 'left' : 'right';
+  panel.classList.add('magpulse');
+  setTimeout(()=>panel.classList.remove('magpulse'),320);
+  setTimeout(()=>{
+    panel.classList.add('snapped');
+    app.appendChild(panel);
+    fHead.classList.remove('on'); sHead.classList.add('on');
+    msgs.classList.add('on'); inp.classList.add('on');
+    showRH(false);
+    tabBar.style.height='0'; tabBar.style.opacity='0';
+    stbot.style.display='none';
+    // Narrow screen: add class for 3/4 height + no drag + dimmer overlay
+    if(app.offsetWidth<=SNAP_W) app.classList.add('narrow-snapped');
+    // Wait for globalNav transition, then set overlay coverage
+    setTimeout(()=>{
+      const isNarrow = app.classList.contains('narrow-snapped');
+      if(isNarrow){
+        // Full cover from top:0, bottom stops at panel top
+        overlay.style.top='0';
+        overlay.style.bottom=panel.offsetHeight+'px';
+      } else {
+        // Wide snapped: only cover from below globalNav downward
+        const appRect=app.getBoundingClientRect();
+        const mainEl=document.getElementById('main');
+        const mainRect=mainEl.getBoundingClientRect();
+        overlay.style.top=(mainRect.top-appRect.top)+'px';
+        overlay.style.bottom='0';
+      }
+      overlay.style.display='block';
+      requestAnimationFrame(()=>overlay.classList.add('show'));
+    },220);
+    setHint('P5: 拖顶部横线调高度 · 向右拖边缘还原');
+  },100);
+}
+
+/* ── Unsnap P5→P3 ── */
+function doUnsnap(appW){
+  if(!snapped) return;
+  snapped=false; phase='p3';
+  sliding=false;
+
+  overlay.classList.remove('show');
+  setTimeout(()=>overlay.style.display='none',200);
+  if(appW>340){tabBar.style.height='';tabBar.style.opacity='1';}
+  stbot.style.display='';
+
+  // Animate panel sliding down before repositioning
+  const wasNarrow=app.classList.contains('narrow-snapped');
+  app.classList.remove('narrow-snapped');
+
+  // Brief delay to let CSS transition play (top:0 → snapped bottom position)
+  const reposition=()=>{
+    panel.classList.remove('snapped');
+    panel.classList.remove('magpulse');
+    rightCol.appendChild(panel);
+
+    // Reset pi scaling
+    pi.style.transform=''; pi.style.width=''; pi.style.height='';
+
+    const mr=MR();
+    const stbH=stbot ? stbot.offsetHeight : 0;
+    const rw=Math.min(savedW,mr.width-4);
+    const rh=savedH;
+    const rt=Math.max(0, mr.height-stbH-rh-4);
+
+    const anchor=savedSide==='right'
+      ? 'right:4px;left:auto'
+      : 'left:4px;right:auto';
+    panel.style.cssText=[
+      'position:absolute',anchor,'top:'+rt+'px','bottom:auto',
+      'width:'+rw+'px','height:'+rh+'px',
+      'background:var(--white)','border-radius:14px',
+      'box-shadow:var(--shadow)','z-index:250',
+      'display:flex','flex-direction:column','overflow:visible','transition:none'
+    ].join(';');
+    pw=rw; ph=rh; panelAR=pw/ph;
+
+    vToast.classList.remove('on');
+    sHead.classList.remove('on');
+    fHead.classList.add('on'); msgs.classList.add('on'); inp.classList.add('on');
+    showRH(true);
+    setHint('P3: 拖标题移动 · 拖边缘缩放');
+  };
+
+  if(wasNarrow){
+    // Let the CSS transition (top:0→bottom) animate for 280ms then reposition
+    setTimeout(reposition, 300);
+  } else {
+    reposition();
+  }
+}
+
+/* ── Slide panel right as window grows after unsnap ── */
+function updateSliding(appW){
+  if(!sliding) return;
+  const mr=MR();
+  // Target right-flush position
+  const targetL=Math.max(0, mr.width-pw-4);
+  // How far from slideFromW to MAX_APP have we gotten?
+  const range=MAX_APP-slideFromW;
+  const progress=range>0 ? Math.max(0,Math.min(1,(appW-slideFromW)/range)) : 1;
+  // Interpolate left: 0 → targetL
+  const curL=Math.round(targetL*progress);
+  panel.style.left=Math.max(0,Math.min(mr.width-pw,curL))+'px';
+  panel.style.top='14px';
+  if(progress>=1){
+    sliding=false;
+    panel.style.left=targetL+'px';
+    setHint('P3: 拖标题移动 · 拖边缘缩放 · 拖右/左边缘收窄触发吸附');
+  }
+}
+
+/* ── App resize ── */
+let appRes=false,appMode='',appSX=0,appSW=0,warned=false;
+
+function startAppResize(e,mode){
+  e.preventDefault();
+  appRes=true; appMode=mode; appSX=e.clientX; appSW=app.offsetWidth;
+  document.body.style.cursor={left:'ew-resize',right:'ew-resize',sw:'sw-resize',se:'se-resize'}[mode];
+  document.addEventListener('pointermove',onAppMove);
+  document.addEventListener('pointerup',onAppUp);
+  sg.style.display='block'; posSG();
+}
+function posSG(){const ar=app.getBoundingClientRect();sg.style.left=(ar.left+SNAP_W)+'px';sg.style.top=ar.top+'px';sg.style.height=ar.height+'px';}
+
+function onAppMove(e){
+  if(!appRes) return;
+  const dx=e.clientX-appSX;
+  let nw=(appMode==='right'||appMode==='se')?appSW+dx:appSW-dx;
+  nw=Math.max(MIN_APP,Math.min(MAX_APP,nw));
+  app.style.width=nw+'px';
+  updateDoc(nw);
+  posSG();
+
+  // P1 toast: scale and center
+  if(!snapped && phase==='p1'){
+    posToast(nw);
+    return;
+  }
+
+  // Sliding after unsnap: move panel left→right
+  if(!snapped && sliding && phase==='p3'){
+    updateSliding(nw);
+    // Also clamp width if needed
+    const mr=MR();
+    if(pw>mr.width-4){
+      pw=Math.max(220,mr.width-4);
+      panel.style.width=pw+'px';
+    }
+    return; // don't do other P3 logic while sliding
+  }
+
+  // P2/P3: squeeze panel proportionally + strict clamp inside mainRow
+  if(!snapped && (phase==='p2'||phase==='p3')){
+    const mr=MR();
+    // Squeeze width proportionally if panel too wide
+    if(pw>mr.width-4){
+      const npw=Math.max(220,mr.width-4);
+      const scale=npw/pw;
+      ph=Math.max(160,Math.round(ph*scale));
+      pw=npw; panelAR=pw/ph;
+      panel.style.width=pw+'px';
+      panel.style.height=ph+'px';
+    }
+    // Strictly clamp position
+    clampPanel();
+  }
+
+  // Magnetic pulse warning approaching snap
+  if(!snapped && nw<SNAP_W+70 && nw>SNAP_W && !warned && (phase==='p2'||phase==='p3')){
+    warned=true;
+    panel.classList.add('magpulse');
+    setTimeout(()=>panel.classList.remove('magpulse'),320);
+    setHint('⚡ 即将吸附…');
+  }
+  if(nw>SNAP_W+70) warned=false;
+
+  // Snap threshold
+  if(!snapped && nw<=SNAP_W && (phase==='p2'||phase==='p3')) doSnap();
+  // Unsnap threshold
+  if(snapped && nw>=UNSNAP_W) doUnsnap(nw);
+}
+
+function onAppUp(){
+  appRes=false; document.body.style.cursor='';
+  document.removeEventListener('pointermove',onAppMove);
+  document.removeEventListener('pointerup',onAppUp);
+  sg.style.display='none'; warned=false;
+  // Finalize toast position
+  if(phase==='p1') posToast(app.offsetWidth);
+  // Finalize sliding
+  if(sliding) updateSliding(app.offsetWidth);
+}
+
+document.getElementById('rzL').addEventListener('pointerdown',e=>startAppResize(e,'left'));
+document.getElementById('rzR').addEventListener('pointerdown',e=>startAppResize(e,'right'));
+document.getElementById('rzBL').addEventListener('pointerdown',e=>startAppResize(e,'sw'));
+document.getElementById('rzBR').addEventListener('pointerdown',e=>startAppResize(e,'se'));
+
+/* ── Panel drag — strictly inside mainRow ── */
+let drag=false,dOX=0,dOY=0;
+function isDrag(e){return !e.target.closest('.fhic,.fhback,.fhtab,.shic,.shclose,.shtab,#msgs,#inp,.rh');}
+function startDrag(e,cap){
+  if(snapped) return;
+  // P1 toast: only block drag on the action buttons (expand/close), allow body drag
+  if(phase==='p1'){
+    if(e.target.closest('#btnExpand,#btnClose0')) return;
+  } else {
+    if(!isDrag(e)) return;
+  }
+  e.preventDefault(); drag=true;
+  panel.style.transition='';
+  panel.style.boxShadow='var(--shadow-lg)';
+  panel.style.cursor='grabbing';
+  const pr=panel.getBoundingClientRect(),mr=MR();
+  pw=pr.width; ph=pr.height;
+  dOX=e.clientX-mr.left-(pr.left-mr.left);
+  dOY=e.clientY-mr.top-(pr.top-mr.top);
+  cap.setPointerCapture(e.pointerId);
+}
+function moveDrag(e){
+  if(!drag) return;
+  const mr=MR();
+  const b=getBounds();
+  let nx=e.clientX-mr.left-dOX;
+  let ny=e.clientY-mr.top-dOY;
+  nx=Math.max(b.minX, Math.min(b.maxX, nx));
+  ny=Math.max(b.minY, Math.min(b.maxY, ny));
+  panel.style.left=nx+'px';
+  panel.style.top=ny+'px';
+  panel.style.right='auto';
+}
+function endDrag(){
+  if(!drag) return; drag=false;
+  panel.style.boxShadow='var(--shadow)'; panel.style.cursor='';
+
+  if(phase==='p1'){
+    // P1 toast: snap to nearest edge of bounds rectangle
+    snapToastToEdge();
+    return;
+  }
+
+  // P3: save position and anchor to nearest side
+  savedW=pw; savedH=ph;
+  const mr=MR();
+  const panelCenter=parseFloat(panel.style.left||0)+pw/2;
+  savedSide = panelCenter < mr.width/2 ? 'left' : 'right';
+  if(savedSide==='right'){
+    panel.style.right='4px'; panel.style.left='auto';
+  } else {
+    panel.style.left='4px'; panel.style.right='auto';
+  }
+}
+
+/* Snap P1 toast to the nearest edge of the allowed bounds rect */
+function snapToastToEdge(){
+  const b=getBounds();
+  const curL=parseFloat(panel.style.left)||0;
+  const curT=parseFloat(panel.style.top)||0;
+
+  // Distances to each of the 4 edges
+  const dLeft  = curL - b.minX;
+  const dRight = b.maxX - curL;
+  const dTop   = curT - b.minY;
+  const dBot   = b.maxY - curT;
+
+  const minDist=Math.min(dLeft, dRight, dTop, dBot);
+
+  panel.style.transition='left .22s cubic-bezier(.4,0,.2,1), top .22s cubic-bezier(.4,0,.2,1), right .22s cubic-bezier(.4,0,.2,1)';
+
+  if(minDist===dRight){
+    // snap right
+    panel.style.left=(b.maxX)+'px';
+    panel.style.top=Math.max(b.minY,Math.min(b.maxY,curT))+'px';
+    panel.style.right='auto';
+    savedSide='right';
+  } else if(minDist===dLeft){
+    // snap left
+    panel.style.left=b.minX+'px';
+    panel.style.top=Math.max(b.minY,Math.min(b.maxY,curT))+'px';
+    panel.style.right='auto';
+    savedSide='left';
+  } else if(minDist===dTop){
+    // snap top
+    panel.style.top=b.minY+'px';
+    panel.style.left=Math.max(b.minX,Math.min(b.maxX,curL))+'px';
+    panel.style.right='auto';
+    savedSide= curL+pw/2 > (b.minX+b.maxX)/2 ? 'right':'left';
+  } else {
+    // snap bottom
+    panel.style.top=b.maxY+'px';
+    panel.style.left=Math.max(b.minX,Math.min(b.maxX,curL))+'px';
+    panel.style.right='auto';
+    savedSide= curL+pw/2 > (b.minX+b.maxX)/2 ? 'right':'left';
+  }
+
+  setTimeout(()=>{ panel.style.transition=''; }, 240);
+}
+fHead.addEventListener('pointerdown',e=>startDrag(e,fHead));
+fHead.addEventListener('pointermove',moveDrag);
+fHead.addEventListener('pointerup',endDrag);
+panel.addEventListener('pointerdown',e=>{if(!drag)startDrag(e,panel);});
+panel.addEventListener('pointermove',moveDrag);
+panel.addEventListener('pointerup',endDrag);
+panel.addEventListener('mouseover',e=>{
+  if(!snapped&&phase==='p1'&&!e.target.closest('#btnExpand,#btnClose0'))panel.style.cursor='grab';
+  else if(!snapped&&phase!=='p1'&&isDrag(e))panel.style.cursor='grab';
+});
+panel.addEventListener('mouseout',()=>{if(!drag)panel.style.cursor='';});
+
+/* ── Panel resize handles — strictly clamped ── */
+const MIN_W=200,MIN_H=160;
+function cl(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+
+function makeR(id,cur,fn){
+  const el=document.getElementById(id);
+  let on=false,sx=0,sy=0,sw=0,sh=0,spx=0,spy=0;
+  el.addEventListener('pointerdown',e=>{
+    if(snapped) return;
+    e.preventDefault(); e.stopPropagation(); on=true;
+    panel.style.transition='';
+    const pr=panel.getBoundingClientRect(),mr=MR();
+    sx=e.clientX;sy=e.clientY;sw=pr.width;sh=pr.height;
+    spx=pr.left-mr.left;spy=pr.top-mr.top;
+    pw=sw;ph=sh;el.setPointerCapture(e.pointerId);document.body.style.cursor=cur;
+  });
+  el.addEventListener('pointermove',e=>{if(on)fn(e.clientX-sx,e.clientY-sy,sw,sh,spx,spy);});
+  const up=()=>{if(!on)return;on=false;document.body.style.cursor='';pw=panel.offsetWidth;ph=panel.offsetHeight;panelAR=pw/ph;savedW=pw;savedH=ph;};
+  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+}
+const mW=()=>MR();
+// All resize: clamp so panel never exits allowed bounds
+// rightCol space: minY=0 (tbar top), maxY=rightCol.height-stbot.height
+function stbotH(){ return stbot ? stbot.offsetHeight : 0; }
+makeR('rr','ew-resize',(dx,dy,sw,sh,spx,spy)=>{
+  const nw=cl(sw+dx,MIN_W,mW().width-spx); panel.style.width=nw+'px';pw=nw;
+});
+makeR('rb','ns-resize',(dx,dy,sw,sh,spx,spy)=>{
+  const nh=cl(sh+dy,MIN_H,mW().height-stbotH()-spy); panel.style.height=nh+'px';ph=nh;
+});
+makeR('rt','ns-resize',(dx,dy,sw,sh,spx,spy)=>{
+  const nh=cl(sh-dy,MIN_H,spy+sh);
+  const ny=Math.max(0, spy+sh-nh);
+  panel.style.height=nh+'px';panel.style.top=ny+'px';ph=nh;
+});
+makeR('rl','ew-resize',(dx,dy,sw,sh,spx,spy)=>{
+  const nw=cl(sw-dx,MIN_W,spx+sw);
+  const nx=Math.max(0,spx+sw-nw);
+  panel.style.width=nw+'px';panel.style.left=nx+'px';pw=nw;
+});
+makeR('rtr','nesw-resize',(dx,dy,sw,sh,spx,spy)=>{
+  const nw=cl(sw+dx,MIN_W,mW().width-spx);
+  const nh=cl(sh-dy,MIN_H,spy+sh);
+  const ny=Math.max(0, spy+sh-nh);
+  panel.style.width=nw+'px';panel.style.height=nh+'px';panel.style.top=ny+'px';pw=nw;ph=nh;
+});
+makeR('rbr','nwse-resize',(dx,dy,sw,sh,spx,spy)=>{
+  const nw=cl(sw+dx,MIN_W,mW().width-spx);
+  const nh=cl(sh+dy,MIN_H,mW().height-stbotH()-spy);
+  panel.style.width=nw+'px';panel.style.height=nh+'px';pw=nw;ph=nh;
+});
+makeR('rtl','nwse-resize',(dx,dy,sw,sh,spx,spy)=>{
+  const nw=cl(sw-dx,MIN_W,spx+sw);
+  const nh=cl(sh-dy,MIN_H,spy+sh);
+  const nx=Math.max(0,spx+sw-nw);
+  const ny=Math.max(0,spy+sh-nh);
+  panel.style.width=nw+'px';panel.style.height=nh+'px';panel.style.left=nx+'px';panel.style.top=ny+'px';pw=nw;ph=nh;
+});
+makeR('rbl','nesw-resize',(dx,dy,sw,sh,spx,spy)=>{
+  const d=-dx;
+  let nw=cl(sw+d,MIN_W,spx+sw);
+  let nh=nw/panelAR;
+  const maxH=mW().height-stbotH()-spy;
+  if(nh>maxH){nh=maxH;nw=nh*panelAR;}
+  if(nh<MIN_H){nh=MIN_H;nw=nh*panelAR;}
+  if(nw<MIN_W){nw=MIN_W;nh=nw/panelAR;}
+  const nx=Math.max(0,spx+sw-nw);
+  panel.style.left=nx+'px';panel.style.width=nw+'px';panel.style.height=nh+'px';pw=nw;ph=nh;
+});
+
+/* ── Snapped height drag ── */
+let snapD=false,snapSY=0,snapSH=0;
+const SMIN=120,SMAX=480;
+function startSD(e,cap){
+  if(!snapped)return;
+  if(app.classList.contains('narrow-snapped'))return; // no drag in narrow mode
+  e.preventDefault();e.stopPropagation();
+  snapD=true;snapSY=e.clientY;snapSH=panel.offsetHeight;
+  document.body.style.cursor='ns-resize';cap.setPointerCapture(e.pointerId);
+}
+function moveSD(e){
+  if(!snapD)return;
+  let h=Math.max(SMIN,Math.min(SMAX,snapSH-(e.clientY-snapSY)));
+  panel.style.setProperty('height',h+'px','important');
+}
+function endSD(){if(!snapD)return;snapD=false;document.body.style.cursor='';}
+dragPill.addEventListener('pointerdown',e=>startSD(e,dragPill));
+dragPill.addEventListener('pointermove',moveSD);
+dragPill.addEventListener('pointerup',endSD);
+dragPill.addEventListener('pointercancel',endSD);
+sHead.addEventListener('pointerdown',e=>{if(e.target.closest('.shic,.shclose,.shtab'))return;startSD(e,sHead);});
+sHead.addEventListener('pointermove',moveSD);
+sHead.addEventListener('pointerup',endSD);
+sHead.addEventListener('pointercancel',endSD);
+
+/* ── Buttons ── */
+document.getElementById('btnExpand').addEventListener('click',e=>{e.stopPropagation();if(phase==='p1')expandPanel();});
+document.getElementById('btnClose0').addEventListener('click',e=>{e.stopPropagation();panel.classList.remove('p1-draggable');panel.style.display='none';setHint('弹窗已关闭');});
+document.getElementById('btnMin').addEventListener('click',e=>{
+  e.stopPropagation();
+  panel.style.transition='opacity .15s,transform .15s';
+  panel.style.opacity='0';panel.style.transform='scale(.92)';
+  setTimeout(()=>{panel.style.display='none';panel.style.opacity='';panel.style.transform='';panel.style.transition='';document.getElementById('minBar').classList.add('show');},150);
+  setHint('已最小化 · 点击 ⬜ 恢复');
+});
+document.getElementById('btnClose1').addEventListener('click',e=>{e.stopPropagation();panel.style.display='none';setHint('弹窗已关闭');});
+document.getElementById('btnSnapClose').addEventListener('click',e=>{
+  e.stopPropagation();
+  overlay.classList.remove('show');setTimeout(()=>overlay.style.display='none',200);
+  panel.style.transition='opacity .15s,transform .15s';
+  panel.style.opacity='0';panel.style.transform='translateY(20px)';
+  // Animate: narrow mode slides down, wide mode fades out
+  if(app.classList.contains('narrow-snapped')){
+    app.classList.remove('narrow-snapped'); // triggers CSS transition top:0→bottom
+    setTimeout(()=>{
+      panel.style.display='none';
+      rightCol.appendChild(panel);panel.classList.remove('snapped');snapped=false;
+      tabBar.style.height='';tabBar.style.opacity='1';
+      stbot.style.display='';
+    },300);
+  } else {
+    panel.style.transition='opacity .15s,transform .15s';
+    panel.style.opacity='0';panel.style.transform='translateY(20px)';
+    setTimeout(()=>{
+      panel.style.display='none';panel.style.opacity='';panel.style.transform='';panel.style.transition='';
+      rightCol.appendChild(panel);panel.classList.remove('snapped');snapped=false;
+      tabBar.style.height='';tabBar.style.opacity='1';
+      stbot.style.display='';
+    },160);
+  }
+  setHint('弹窗已关闭');
+});
+document.getElementById('btnSnapRestore').addEventListener('click',e=>{e.stopPropagation();doUnsnap(app.offsetWidth);});
+document.getElementById('btnMinRestore').addEventListener('click',e=>{
+  e.stopPropagation();
+  document.getElementById('minBar').classList.remove('show');
+  panel.style.display='flex';
+  const mr=MR();
+  const stbH2=stbot ? stbot.offsetHeight : 0;
+  const rw=Math.min(savedW,mr.width-4);
+  const rt=Math.max(0, mr.height-stbH2-savedH-4);
+  const anchor = savedSide==='right' ? 'right:4px;left:auto' : 'left:4px;right:auto';
+  panel.style.cssText=['position:absolute',anchor,'top:'+rt+'px','bottom:auto','width:'+rw+'px','height:'+savedH+'px','background:var(--white)','border-radius:14px','box-shadow:var(--shadow)','z-index:250','display:flex','flex-direction:column','overflow:visible','opacity:0','transform:scale(.92)','transition:opacity .18s,transform .18s'].join(';');
+  pw=rw;ph=savedH;panelAR=pw/ph;
+  fHead.classList.add('on');sHead.classList.remove('on');msgs.classList.add('on');inp.classList.add('on');
+  showRH(true);phase='p3';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{panel.style.opacity='1';panel.style.transform='scale(1)';}));
+  setTimeout(()=>{panel.style.transition='';panel.style.opacity='';panel.style.transform='';},230);
+  setHint('P3: 拖标题移动 · 拖边缘缩放');
+});
+document.getElementById('btnMinClose').addEventListener('click',e=>{
+  e.stopPropagation();document.getElementById('minBar').classList.remove('show');panel.style.display='none';setHint('弹窗已关闭');
+});
+
+/* ── Init ── */
+updateDoc(760);
+// Position toast right-aligned, top = below tbar+fbar (in doc area)
+requestAnimationFrame(()=>{
+  const mr=MR();
+  const topBase=getToastTop();
+  panel.style.left=Math.max(0,mr.width-TOAST_W-4)+'px';
+  panel.style.top=topBase+'px';
+  panel.classList.add('p1-draggable');
+});
+</script>
+</body>
+</html>
